@@ -1,12 +1,11 @@
-
 """
 Script Name: Automation_PrepareLasData_AP_1.0.py
 Description: Perform voxel downsampling on point clouds and labels, convert .pcd and .labels to .las format
 Created Date: 2024-04-17
 Author: Aleksandar Lukic, Ana Petrovic
 Version: 1.0
-Last Modified: 2024-04-22
-Modified by: 
+Last Modified: 2024-04-25
+Modified by: Ana Petrovic (Modified script to create multiple las files for each pcd file)
 
 Example Usage:
 python Automation_PrepareLasData_AP_1.0.py --path/to/dense/point/clouds --path/to/dense/labels --voxel size
@@ -25,7 +24,7 @@ from each grid to reduce the point cloud's density.
     │   ├── path/to/your/downsampled/labels
     │   └── path/to/your/downsampled/pcd
     ├── las
-    │   ├── path/to/output/las/with/lae
+    │   ├── path/to/output/las/with/labels 
     │   └── path/to/output/las
     └── raw_data
         ├── path/to/your/labels (optional)
@@ -40,11 +39,11 @@ import numpy as np
 import laspy
 
 # Create paths to output las files
-las = '/mnt/c/ems/Ana/AP_test/dataset/las/output_label.las'
-las_labels = '/mnt/c/ems/Ana/AP_test/dataset/las/output_label.las'
+las_folder = os.listdir('/mnt/c/ems/Ana/AP_test/dataset/las')
 
 # Read .labels and return array of integers which represent colors for semantic segmentation
 def load_labels(label_path):
+
     # Assuming each line is a valid int
     with open(label_path, "r") as f:
         labels = [int(line) for line in f]
@@ -59,6 +58,7 @@ def write_labels(label_path, labels):
 
 # Convert pcd to las
 def convert_pcd_to_las(pcd_file, las_file_path):
+
     # Load PCD file
     pcd = pcd_file
 
@@ -76,6 +76,7 @@ def convert_pcd_to_las(pcd_file, las_file_path):
     las.z = points[:, 2]
 
     if colors is not None:
+
         # Normalize colors from [0, 1] to [0, 255] and assign to LAS
         las.red = (colors[:, 0] * 255).astype(np.uint16)
         las.green = (colors[:, 1] * 255).astype(np.uint16)
@@ -86,6 +87,7 @@ def convert_pcd_to_las(pcd_file, las_file_path):
 
 # Convert labels to las with classification
 def convert_pcd_to_las_with_classifications(pcd_file, las_file_path, classifications_path):
+    
     # Load PCD file
     pcd = pcd_file
 
@@ -122,6 +124,7 @@ def convert_pcd_to_las_with_classifications(pcd_file, las_file_path, classificat
     las.write(las_file_path)
 
 def down_sample( dense_pcd_path, dense_label_path, sparse_pcd_path, sparse_label_path, voxel_size):
+
     # Skip if done
     if os.path.isfile(sparse_pcd_path) and ( not os.path.isfile(dense_label_path) or os.path.isfile(sparse_label_path)):
         print("Skipped:", file_prefix)
@@ -175,8 +178,8 @@ def down_sample( dense_pcd_path, dense_label_path, sparse_pcd_path, sparse_label
     open3d.io.write_point_cloud(filename = sparse_pcd_path, pointcloud = sparse_pcd, format='auto', write_ascii=False, compressed=False, print_progress=False)
     print("Point cloud written to:", sparse_pcd_path)
 
-    convert_pcd_to_las(sparse_pcd, las)
-    print('Successfully converted .pcd to .las to: ', las)
+    #convert_pcd_to_las(sparse_pcd, las) test
+    #print('Successfully converted .pcd to .las to: ', las)
 
     # Downsample labels
     if dense_labels is not None:
@@ -191,8 +194,8 @@ def down_sample( dense_pcd_path, dense_label_path, sparse_pcd_path, sparse_label
         write_labels(sparse_label_path, sparse_labels)
         print("Labels written to:", sparse_label_path)
 
-        convert_pcd_to_las_with_classifications(sparse_pcd, las_file_path=las_labels, classifications_path=sparse_label_path)
-        print('Successfully converted .labels to .las to: ', las_labels)
+        #convert_pcd_to_las_with_classifications(sparse_pcd, las_file_path=las_labels, classifications_path=sparse_label_path)
+        #print('Successfully converted .labels to .las to: ', las_labels) test
         
 if __name__ == "__main__":
     voxel_size = 0.05
@@ -218,7 +221,9 @@ if __name__ == "__main__":
         if file.endswith('.labels'):
             list_labels.append(file)
 
-            las_labels = '/mnt/c/ems/Ana/AP_test/dataset/las/output_label.las'
+            file_name = os.path.splitext(file)[0]
+
+            las_labels = os.path.join('/mnt/c/ems/Ana/AP_test/dataset/las', file_name + '_labels' + '.las')
             with open(las_labels, 'w') as f:
                 pass
     
@@ -227,15 +232,21 @@ if __name__ == "__main__":
         if file.endswith('.pcd'):
             list_pcds.append(file)
 
-            las = '/mnt/c/ems/Ana/AP_test/dataset/las/output.las'
+            file_name = os.path.splitext(file)[0]
+
+            las = os.path.join('/mnt/c/ems/Ana/AP_test/dataset/las', file_name + '.las')
             with open(las, 'w') as f:
                 pass
 
-# Iterate through list of pcd files and check if labels files are present
+    # Iterate through list of pcd files and check if labels files are present
     for file in list_pcds:
         name, extension = os.path.splitext(file)
         file_prefix = name
         label_file = file_prefix + '.labels'
+
+        # Set the path for las files test
+        las_path = os.path.join('/mnt/c/ems/Ana/AP_test/dataset/las', file_prefix + '.las')
+        las_labels_path = os.path.join('/mnt/c/ems/Ana/AP_test/dataset/las', file_prefix + '_labels.las')
 
         if label_file in list_labels:
             print('File ', file)
@@ -244,8 +255,14 @@ if __name__ == "__main__":
             sparse_pcd_path = os.path.join(downsampled_dir, file_prefix + ".pcd")
             sparse_label_path = os.path.join(downsampled_dir, file_prefix + ".labels")
             down_sample(dense_pcd_path, dense_label_path, sparse_pcd_path, sparse_label_path, voxel_size)
+
+            # Convert pcd to las with labels
+            convert_pcd_to_las_with_classifications(open3d.io.read_point_cloud(sparse_pcd_path), las_labels_path, sparse_label_path)
         else:
             dense_pcd_path = os.path.join(raw_dir, file_prefix + ".pcd")
             sparse_pcd_path = os.path.join(downsampled_dir, file_prefix + ".pcd")
             down_sample(dense_pcd_path, None, sparse_pcd_path, None, voxel_size)
+
+            # Convert pcd to las
+            convert_pcd_to_las(open3d.io.read_point_cloud(sparse_pcd_path), las_path)
         
