@@ -1,5 +1,5 @@
 """
-Script Name: [DataPrep_ConvertYoloToCoco_AP_1.0.py]
+Script Name: DataPrep_ConvertYoloToCoco_AP_1.0.py
 Description: Script that converts yolo .txt files to COCO JSON format for all images in the dataset.
 Created Date: YYYY-MM-DD
 Author: Ana Petrovic 
